@@ -1,0 +1,35 @@
+{
+  "name": "pi-rngit-work-document-skill",
+  "version": "0.1.0",
+  "description": "Pi skill for creating and updating rngit work documents over the Reticulum mesh, built on reticulum-js.",
+  "license": "EUPL-1.2",
+  "type": "module",
+  "main": "src/work-client.js",
+  "keywords": [
+    "pi-package",
+    "pi-skill",
+    "reticulum",
+    "rns",
+    "rngit"
+  ],
+  "files": [
+    "src",
+    "skills",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test --test-force-exit test/*.test.js"
+  },
+  "dependencies": {
+    "@digitaldefiance/bzip2-wasm": "^1.1.1",
+    "reticulum-js": "^0.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "pi": {
+    "skills": [
+      "./skills"
+    ]
+  }
+}
