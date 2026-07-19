@@ -544,9 +544,12 @@ export class WorkClient {
       storageAdapter: this.storage,
       compressionProvider: this.bz2,
     });
-    const tcp = new TCPClientInterface({ host: this.rnsHost, port: this.rnsPort });
-    await tcp.connect();
-    this.rns.addInterface(tcp, true);
+    const shared = await this.rns.connectToSharedInstance();
+    if (!shared) {
+      const tcp = new TCPClientInterface({ host: this.rnsHost, port: this.rnsPort });
+      await tcp.connect();
+      this.rns.addInterface(tcp, true);
+    }
 
     this.identity = await Identity.loadOrGenerate(this.rns.storage);
 
