@@ -40,9 +40,10 @@ import {
   Identity,
   MsgPack,
   Reticulum,
-  TCPClientInterface,
   toHex,
 } from "reticulum-js";
+import { LocalClientInterface } from "reticulum-js/src/interfaces/local_client.js";
+import { TCPClientInterface } from "reticulum-js/src/interfaces/tcp.js";
 import { createBz2 } from "./bz2.js";
 
 // --- Protocol constants (mirror the Python `ReticulumGitClient`) -----------
@@ -544,8 +545,10 @@ export class WorkClient {
       storageAdapter: this.storage,
       compressionProvider: this.bz2,
     });
-    const shared = await this.rns.connectToSharedInstance();
-    if (!shared) {
+    const shared = await LocalClientInterface.connectToSharedInstance();
+    if (shared) {
+      this.rns.addInterface(shared, true);
+    } else {
       const tcp = new TCPClientInterface({ host: this.rnsHost, port: this.rnsPort });
       await tcp.connect();
       this.rns.addInterface(tcp, true);

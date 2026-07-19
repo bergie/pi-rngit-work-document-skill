@@ -1,6 +1,6 @@
 {
   "name": "pi-rngit-work-document-skill",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Pi skill for creating and updating rngit work documents over the Reticulum mesh, built on reticulum-js.",
   "license": "EUPL-1.2",
   "author": "Henri Bergius <henri.bergius@iki.fi>",
@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@digitaldefiance/bzip2-wasm": "^1.1.1",
-    "reticulum-js": "^0.2.1"
+    "reticulum-js": "^0.3.0"
   },
   "engines": {
     "node": ">=20"
