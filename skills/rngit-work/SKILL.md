@@ -1,6 +1,6 @@
 ---
 name: rngit-work
-description: Create and update rngit work documents over the Reticulum mesh. Use when asked to list, view, create, edit, add an update to, complete, or activate a work document on an rngit node (e.g. the project's work document board). Runs the bundled work.js client built on reticulum-js — no interactive editor needed.
+description: Create and update rngit work documents over the Reticulum mesh. Use when asked to list, view, create, propose, edit, add an update to, complete, or activate a work document on an rngit node (e.g. the project's work document board). Runs the bundled work.js client built on reticulum-js — no interactive editor needed.
 ---
 
 # rngit work documents
