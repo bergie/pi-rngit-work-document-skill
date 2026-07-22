@@ -30,7 +30,7 @@
  * identifies itself (`LINKIDENTIFY`), then issues requests.
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import {
@@ -42,8 +42,8 @@ import {
   Reticulum,
   toHex,
 } from "reticulum-js";
-import { LocalClientInterface } from "reticulum-js/src/interfaces/local_client.js";
 import { AutoInterface } from "reticulum-js/src/interfaces/auto.js";
+import { LocalClientInterface } from "reticulum-js/src/interfaces/local_client.js";
 import { TCPClientInterface } from "reticulum-js/src/interfaces/tcp.js";
 import { createBz2 } from "./bz2.js";
 
@@ -75,7 +75,7 @@ export const SCOPES = ["active", "completed", "proposed", "all"];
  * from project files.
  */
 export const RNS_URL_RE =
-  /rns:\/\/[0-9a-fA-F]{32}\/[^\s"'`)\]>\/]+\/[^\s"'`)\]>\/]+/;
+  /rns:\/\/[0-9a-fA-F]{32}\/[^\s"'`)\]>/]+\/[^\s"'`)\]>/]+/;
 
 // --- Errors ---------------------------------------------------------------
 
@@ -114,7 +114,8 @@ export function parseRemoteUrl(input) {
     throw new ConfigError("No remote URL specified");
   }
   let rest = input;
-  if (rest.toLowerCase().startsWith("rns://")) rest = rest.slice("rns://".length);
+  if (rest.toLowerCase().startsWith("rns://"))
+    rest = rest.slice("rns://".length);
   const parts = rest.split("/");
   if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) {
     throw new ConfigError(
@@ -134,7 +135,9 @@ export function parseRemoteUrl(input) {
 export function toHashBytes(hash) {
   if (hash instanceof Uint8Array) {
     if (hash.length !== 16) {
-      throw new ConfigError(`Destination hash must be 16 bytes, got ${hash.length}`);
+      throw new ConfigError(
+        `Destination hash must be 16 bytes, got ${hash.length}`,
+      );
     }
     return hash;
   }
@@ -143,7 +146,9 @@ export function toHashBytes(hash) {
     try {
       bytes = fromHex(hash.trim());
     } catch {
-      throw new ConfigError(`Destination hash must be valid hex, got "${hash}"`);
+      throw new ConfigError(
+        `Destination hash must be valid hex, got "${hash}"`,
+      );
     }
     if (bytes.length !== 16) {
       throw new ConfigError(
@@ -195,9 +200,7 @@ export function parseResponse(response) {
   const status = response[0];
   if (status !== Status.OK) {
     const text =
-      response.length > 1
-        ? new TextDecoder().decode(response.subarray(1))
-        : "";
+      response.length > 1 ? new TextDecoder().decode(response.subarray(1)) : "";
     throw new WorkError(status, text || statusLabel(status));
   }
   if (response.length <= 1) return null;
@@ -279,7 +282,9 @@ export function formatView(doc) {
   const meta = doc?.meta ?? {};
   const heading = `${meta.title ?? "Untitled"} (#${doc?.id ?? "?"})`;
   const out = [heading, "=".repeat(heading.length)];
-  out.push(`Author    : ${meta.author ? toHex(fromHex(meta.author)) : "(unknown)"}`);
+  out.push(
+    `Author    : ${meta.author ? toHex(fromHex(meta.author)) : "(unknown)"}`,
+  );
   out.push(`Status    : ${meta.scope ? cap(meta.scope) : "—"}`);
   out.push(`Created   : ${fmtTime(meta.created)}`);
   out.push(`Edited    : ${fmtTime(meta.edited)}`);
@@ -530,7 +535,8 @@ export class WorkClient {
 
     /** @type {Reticulum|null} */ this.rns = null;
     /** @type {import("reticulum-js").Identity|null} */ this.identity = null;
-    /** @type {import("reticulum-js").Identity|null} */ this.remoteIdentity = null;
+    /** @type {import("reticulum-js").Identity|null} */ this.remoteIdentity =
+      null;
     /** @type {import("reticulum-js").Link|null} */ this.link = null;
   }
 
@@ -554,7 +560,10 @@ export class WorkClient {
       await auto.connect();
       rns.addInterface(auto, true);
       if (this.rnsHost && this.rnsPort) {
-        const tcp = new TCPClientInterface({ host: this.rnsHost, port: this.rnsPort });
+        const tcp = new TCPClientInterface({
+          host: this.rnsHost,
+          port: this.rnsPort,
+        });
         await tcp.connect();
         this.rns.addInterface(tcp, true);
       }
@@ -784,5 +793,7 @@ function truncate(s, n) {
 
 /** @param {string} s @param {number} width */
 function pad(s, width) {
-  return s.length >= width ? s.slice(0, width - 1) + "…" : s + " ".repeat(width - s.length);
+  return s.length >= width
+    ? s.slice(0, width - 1) + "…"
+    : s + " ".repeat(width - s.length);
 }

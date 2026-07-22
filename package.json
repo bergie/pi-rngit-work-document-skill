@@ -19,6 +19,8 @@
     "README.md"
   ],
   "scripts": {
+    "lint": "npx @biomejs/biome check --use-editorconfig=true src/",
+    "format": "npx @biomejs/biome check --use-editorconfig=true --write src/ test/",
     "test": "node --test --test-force-exit test/*.test.js"
   },
   "dependencies": {

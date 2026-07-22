@@ -5,27 +5,28 @@
  * framing, URL parsing and CLI formatting. End-to-end behaviour against a live
  * rngit node is covered manually (it requires mesh connectivity).
  */
-import { test } from "node:test";
+
 import { strict as assert } from "node:assert";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { test } from "node:test";
 import { MsgPack } from "reticulum-js";
 import {
-  IDX_REPOSITORY,
-  Status,
-  WorkError,
-  ConfigError,
-  parseRemoteUrl,
-  toHashBytes,
   buildRequest,
-  parseResponse,
-  statusLabel,
+  ConfigError,
+  discoverUrl,
   formatList,
   formatView,
-  loadConfig,
-  discoverUrl,
+  IDX_REPOSITORY,
   identityHashHex,
+  loadConfig,
+  parseRemoteUrl,
+  parseResponse,
+  Status,
+  statusLabel,
+  toHashBytes,
+  WorkError,
 } from "../src/work-client.js";
 
 const HASH_HEX = "3ea5aad068a337670f5bb8073226adb4";
@@ -57,7 +58,10 @@ test("parseRemoteUrl accepts the scheme-less form", () => {
 test("parseRemoteUrl rejects bad input", () => {
   assert.throws(() => parseRemoteUrl(""), ConfigError);
   assert.throws(() => parseRemoteUrl("rns://short/x/y"), ConfigError);
-  assert.throws(() => parseRemoteUrl("rns://hash/only-one-segment"), ConfigError);
+  assert.throws(
+    () => parseRemoteUrl("rns://hash/only-one-segment"),
+    ConfigError,
+  );
 });
 
 // --- toHashBytes ----------------------------------------------------------
@@ -99,12 +103,15 @@ test("buildRequest omits undefined fields", () => {
 // --- parseResponse --------------------------------------------------------
 
 function response(status, payload) {
-  const body = payload === undefined ? new Uint8Array() : MsgPack.encode(payload);
+  const body =
+    payload === undefined ? new Uint8Array() : MsgPack.encode(payload);
   return new Uint8Array([status, ...body]);
 }
 
 test("parseResponse decodes an OK payload", () => {
-  const decoded = parseResponse(response(Status.OK, { id: 9, scope: "active" }));
+  const decoded = parseResponse(
+    response(Status.OK, { id: 9, scope: "active" }),
+  );
   assert.equal(decoded.id, 9);
   assert.equal(decoded.scope, "active");
 });
@@ -114,10 +121,16 @@ test("parseResponse returns null for an empty OK body", () => {
 });
 
 test("parseResponse throws WorkError with the server message on failure", () => {
-  const err = response(Status.DISALLOWED, new TextEncoder().encode("Not allowed"));
+  const err = response(
+    Status.DISALLOWED,
+    new TextEncoder().encode("Not allowed"),
+  );
   assert.throws(
     () => parseResponse(err),
-    (e) => e instanceof WorkError && e.status === Status.DISALLOWED && /Not allowed/.test(e.message),
+    (e) =>
+      e instanceof WorkError &&
+      e.status === Status.DISALLOWED &&
+      /Not allowed/.test(e.message),
   );
 });
 
@@ -152,7 +165,12 @@ test("formatList handles empty result", () => {
 test("formatView renders body and updates", () => {
   const out = formatView({
     id: 8,
-    meta: { title: "T", created: 1748000000, edited: 1748000000, format: "markdown" },
+    meta: {
+      title: "T",
+      created: 1748000000,
+      edited: 1748000000,
+      format: "markdown",
+    },
     content: "Hello world",
     comments: [{ id: 1, created: 1748000000, content: "An update" }],
   });
@@ -164,7 +182,10 @@ test("formatView renders body and updates", () => {
 // --- loadConfig -----------------------------------------------------------
 
 test("loadConfig reads RNGIT_URL", () => {
-  const cfg = loadConfig({ RNGIT_URL: URL }, fixture(() => {}));
+  const cfg = loadConfig(
+    { RNGIT_URL: URL },
+    fixture(() => {}),
+  );
   assert.equal(cfg.repoPath, "public/reticulum-js");
   assert.equal(cfg.rnsHost, "127.0.0.1");
   assert.equal(cfg.rnsPort, 42424);
@@ -173,7 +194,12 @@ test("loadConfig reads RNGIT_URL", () => {
 
 test("loadConfig accepts component vars", () => {
   const cfg = loadConfig(
-    { RNGIT_TARGET_HASH: HASH_HEX, RNGIT_GROUP: "public", RNGIT_REPO: "reticulum-js", RNS_PORT: "12345" },
+    {
+      RNGIT_TARGET_HASH: HASH_HEX,
+      RNGIT_GROUP: "public",
+      RNGIT_REPO: "reticulum-js",
+      RNS_PORT: "12345",
+    },
     fixture(() => {}),
   );
   assert.equal(cfg.repoPath, "public/reticulum-js");
@@ -181,7 +207,14 @@ test("loadConfig accepts component vars", () => {
 });
 
 test("loadConfig throws without a target", () => {
-  assert.throws(() => loadConfig({}, fixture(() => {})), ConfigError);
+  assert.throws(
+    () =>
+      loadConfig(
+        {},
+        fixture(() => {}),
+      ),
+    ConfigError,
+  );
 });
 
 test("loadConfig falls back to discovery when no env is set", () => {
@@ -233,7 +266,10 @@ test("discoverUrl prefers .git/config over package.json over docs", () => {
   const dir = fixture((d) => {
     mkdirSync(join(d, ".git"));
     writeFileSync(join(d, ".git", "config"), `\turl = ${URL}\n`);
-    writeFileSync(join(d, "package.json"), JSON.stringify({ rngit: "rns://aaa..." }));
+    writeFileSync(
+      join(d, "package.json"),
+      JSON.stringify({ rngit: "rns://aaa..." }),
+    );
     writeFileSync(join(d, "AGENTS.md"), "rns://bbb...");
   });
   assert.equal(discoverUrl(dir), URL);
