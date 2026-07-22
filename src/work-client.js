@@ -43,6 +43,7 @@ import {
   toHex,
 } from "reticulum-js";
 import { LocalClientInterface } from "reticulum-js/src/interfaces/local_client.js";
+import { AutoInterface } from "reticulum-js/src/interfaces/auto.js";
 import { TCPClientInterface } from "reticulum-js/src/interfaces/tcp.js";
 import { createBz2 } from "./bz2.js";
 
@@ -549,9 +550,14 @@ export class WorkClient {
     if (shared) {
       this.rns.addInterface(shared, true);
     } else {
-      const tcp = new TCPClientInterface({ host: this.rnsHost, port: this.rnsPort });
-      await tcp.connect();
-      this.rns.addInterface(tcp, true);
+      const auto = new AutoInterface({ name: "auto" });
+      await auto.connect();
+      rns.addInterface(auto, true);
+      if (this.rnsHost && this.rnsPort) {
+        const tcp = new TCPClientInterface({ host: this.rnsHost, port: this.rnsPort });
+        await tcp.connect();
+        this.rns.addInterface(tcp, true);
+      }
     }
 
     this.identity = await Identity.loadOrGenerate(this.rns.storage);
