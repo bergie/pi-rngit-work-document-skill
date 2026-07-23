@@ -25,7 +25,8 @@
   },
   "dependencies": {
     "@digitaldefiance/bzip2-wasm": "^1.1.1",
-    "reticulum-js": "^0.3.0"
+    "@reticulum/core": "^0.4.0",
+    "@reticulum/node": "^0.4.0"
   },
   "engines": {
     "node": ">=20"

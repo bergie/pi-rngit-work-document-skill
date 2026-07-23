@@ -1,7 +1,7 @@
 /**
  * @file work-client.js
  *
- * reticulum-js client for the **rngit work-document** protocol.
+ * @reticulum/core client for the **rngit work-document** protocol.
  *
  * Drives the same `/mgmt/work` request/response protocol as the `rngit work`
  * CLI (see `RNS/Utilities/rngit/server.py` in the Python reference), so
@@ -41,10 +41,12 @@ import {
   MsgPack,
   Reticulum,
   toHex,
-} from "reticulum-js";
-import { AutoInterface } from "reticulum-js/src/interfaces/auto.js";
-import { LocalClientInterface } from "reticulum-js/src/interfaces/local_client.js";
-import { TCPClientInterface } from "reticulum-js/src/interfaces/tcp.js";
+} from "@reticulum/core";
+import {
+  AutoInterface,
+  LocalClientInterface,
+  TCPClientInterface,
+} from "@reticulum/node";
 import { createBz2 } from "./bz2.js";
 
 // --- Protocol constants (mirror the Python `ReticulumGitClient`) -----------
@@ -308,7 +310,7 @@ export function formatView(doc) {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * File-backed storage adapter for a reticulum-js identity (128-byte private
+ * File-backed storage adapter for a @reticulum/core identity (128-byte private
  * key export). Implements the `loadKey()/saveKey()` contract expected by
  * {@link Identity.loadOrGenerate}.
  */
@@ -343,7 +345,7 @@ export function defaultIdentityPath() {
  * without connecting to the mesh. Used by the `identity` command to surface
  * the hash the node admin needs for the permission bootstrap.
  * @param {string} identityPath
- * @returns {Promise<import("reticulum-js").Identity>}
+ * @returns {Promise<import("@reticulum/core").Identity>}
  */
 export async function ensureIdentity(identityPath) {
   const storage = new FileStorageAdapter(identityPath);
@@ -509,8 +511,8 @@ export class WorkClient {
    * @param {string} options.repo - Repository name (second URL segment).
    * @param {string} [options.rnsHost="127.0.0.1"] - Host of the local rnsd TCP interface.
    * @param {number} [options.rnsPort=42424] - Port of the local rnsd TCP interface.
-   * @param {string} [options.identityPath] - Path to a reticulum-js identity key.
-   * @param {import("reticulum-js").Identity["storage"]} [options.storageAdapter] - Custom identity storage.
+   * @param {string} [options.identityPath] - Path to a @reticulum/core identity key.
+   * @param {import("@reticulum/core").Identity["storage"]} [options.storageAdapter] - Custom identity storage.
    * @param {number} [options.pathTimeoutMs=30000] - Max time to learn the remote identity.
    * @param {number} [options.requestTimeoutMs=300000] - Per-request response timeout.
    * @param {number} [options.identifyDelayMs=150] - Pause after `identify()` so the
@@ -534,10 +536,10 @@ export class WorkClient {
       new FileStorageAdapter(options.identityPath ?? defaultIdentityPath());
 
     /** @type {Reticulum|null} */ this.rns = null;
-    /** @type {import("reticulum-js").Identity|null} */ this.identity = null;
-    /** @type {import("reticulum-js").Identity|null} */ this.remoteIdentity =
+    /** @type {import("@reticulum/core").Identity|null} */ this.identity = null;
+    /** @type {import("@reticulum/core").Identity|null} */ this.remoteIdentity =
       null;
-    /** @type {import("reticulum-js").Link|null} */ this.link = null;
+    /** @type {import("@reticulum/core").Link|null} */ this.link = null;
   }
 
   /**
@@ -558,7 +560,7 @@ export class WorkClient {
     } else {
       const auto = new AutoInterface({ name: "auto" });
       await auto.connect();
-      rns.addInterface(auto, true);
+      this.rns.addInterface(auto, true);
       if (this.rnsHost && this.rnsPort) {
         const tcp = new TCPClientInterface({
           host: this.rnsHost,
@@ -591,7 +593,7 @@ export class WorkClient {
       this.rns,
     );
     this.link = await dest.createLink();
-    // reticulum-js does not propagate Reticulum.compressionProvider to Links,
+    // @reticulum/core does not propagate Reticulum.compressionProvider to Links,
     // so inject the bz2 module directly (needed for rngit's compressed responses).
     this.link.bz2 = this.bz2;
     await this.link.identify(this.identity);
@@ -753,7 +755,7 @@ export class WorkClient {
  * @param {Reticulum} rns
  * @param {Uint8Array} destinationHash
  * @param {number} timeoutMs
- * @returns {Promise<import("reticulum-js").Identity|null>}
+ * @returns {Promise<import("@reticulum/core").Identity|null>}
  */
 async function waitForIdentity(rns, destinationHash, timeoutMs) {
   const deadline = Date.now() + timeoutMs;

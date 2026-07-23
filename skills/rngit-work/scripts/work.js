@@ -84,7 +84,7 @@ async function main() {
   const client = new WorkClient(config);
   const json = Boolean(flags.json);
   try {
-    // reticulum-js logs at DEBUG to stdout; silence the whole connect→request→
+    // @reticulum/core logs at DEBUG to stdout; silence the whole connect→request→
     // teardown lifecycle unless --verbose, so only our result reaches stdout.
     const output = await withStdoutSilenced(Boolean(flags.verbose), async () => {
       try {
@@ -177,7 +177,7 @@ async function runLifecycle(client, op, positional, json) {
 }
 
 /**
- * Runs `fn` with stdout silenced (reticulum-js logs at DEBUG to stdout). When
+ * Runs `fn` with stdout silenced (@reticulum/core logs at DEBUG to stdout). When
  * `verbose` is true, leaves stdout alone so the logs aid debugging. `console.error`
  * is never silenced, so errors and usage still show.
  * @param {boolean} verbose

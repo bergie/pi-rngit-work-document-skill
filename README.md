@@ -6,7 +6,7 @@ interactive editor that the `rngit work` CLI requires.
 
 It speaks the exact same `/mgmt/work` request/response protocol as the Python
 `rngit work` tooling (see `RNS/Utilities/rngit/server.py`).
-Built on [reticulum-js](https://www.npmjs.com/package/reticulum-js).
+Built on [reticulum-js](https://reticulum.js.org).
 
 ## What it does
 
