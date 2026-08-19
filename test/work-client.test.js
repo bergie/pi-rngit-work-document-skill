@@ -187,8 +187,8 @@ test("loadConfig reads RNGIT_URL", () => {
     fixture(() => {}),
   );
   assert.equal(cfg.repoPath, "public/reticulum-js");
-  assert.equal(cfg.rnsHost, "127.0.0.1");
-  assert.equal(cfg.rnsPort, 42424);
+  assert.equal(cfg.rnsHost, null);
+  assert.equal(cfg.rnsPort, null);
   assert.match(cfg.identityPath, /pi-rngit-work/);
 });
 
