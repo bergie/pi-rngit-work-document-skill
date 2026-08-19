@@ -25,7 +25,7 @@
  *  - `create`, `propose` and `edit` sign the UTF-8 bytes of `content` with the
  *    client's Ed25519 identity and send the 64-byte signature.
  *
- * The client connects to a local `rnsd` over TCP by default, learns the remote
+ * The client connects to a local `rnsd` by default, learns the remote
  * node's identity from an announce/path-response, establishes a Link,
  * identifies itself (`LINKIDENTIFY`), then issues requests.
  */
@@ -408,8 +408,8 @@ export function loadConfig(env = process.env, cwd = process.cwd()) {
   }
   return {
     ...parsed,
-    rnsHost: env.RNS_HOST ?? "127.0.0.1",
-    rnsPort: Number(env.RNS_PORT ?? 42424),
+    rnsHost: env.RNS_HOST ?? null,
+    rnsPort: env.RNS_PORT ? Number(env.RNS_PORT) : null,
     identityPath: env.RNGIT_IDENTITY ?? defaultIdentityPath(),
     pathTimeoutMs: Number(env.RNGIT_PATH_TIMEOUT_MS ?? 30000),
     requestTimeoutMs: Number(env.RNGIT_REQUEST_TIMEOUT_MS ?? 300000),
@@ -509,8 +509,8 @@ export class WorkClient {
    * @param {Uint8Array} options.targetHash - 16-byte destination hash of the rngit node.
    * @param {string} options.group - Repository group (first URL segment).
    * @param {string} options.repo - Repository name (second URL segment).
-   * @param {string} [options.rnsHost="127.0.0.1"] - Host of the local rnsd TCP interface.
-   * @param {number} [options.rnsPort=42424] - Port of the local rnsd TCP interface.
+   * @param {string} [options.rnsHost] - Host of a rnsd TCP interface.
+   * @param {number} [options.rnsPort] - Port of a rnsd TCP interface.
    * @param {string} [options.identityPath] - Path to a @reticulum/core identity key.
    * @param {import("@reticulum/core").Identity["storage"]} [options.storageAdapter] - Custom identity storage.
    * @param {number} [options.pathTimeoutMs=30000] - Max time to learn the remote identity.
@@ -526,8 +526,8 @@ export class WorkClient {
     this.group = options.group;
     this.repo = options.repo;
     this.repoPath = `${options.group}/${options.repo}`;
-    this.rnsHost = options.rnsHost ?? "127.0.0.1";
-    this.rnsPort = options.rnsPort ?? 42424;
+    this.rnsHost = options.rnsHost ?? null;
+    this.rnsPort = options.rnsPort ?? null;
     this.pathTimeoutMs = options.pathTimeoutMs ?? 30000;
     this.requestTimeoutMs = options.requestTimeoutMs ?? 300000;
     this.identifyDelayMs = options.identifyDelayMs ?? 150;

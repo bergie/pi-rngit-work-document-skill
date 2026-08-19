@@ -34,7 +34,7 @@ uses) and set `RNGIT_URL`, or pass `--url rns://...` per run. Other env vars:
 
 | Variable | Meaning | Default |
 |---|---|---|
-| `RNS_HOST` / `RNS_PORT` | local rnsd TCP interface | `127.0.0.1:42424` |
+| `RNS_HOST` / `RNS_PORT` | local rnsd TCP interface (both required) | — |
 | `RNGIT_IDENTITY` | path to pi's identity key | `~/.pi-rngit-work/identity.key` |
 
 ### 2. Bootstrap pi's identity (needs the user, once)
@@ -134,8 +134,8 @@ parse the result rather than show it to the user).
 ## Troubleshooting
 
 - *"Could not learn an identity"* — the node isn't reachable or hasn't
-  announced. Check `RNS_HOST`/`RNS_PORT` point at a working rnsd with a path to
-  the node.
+  announced. If using a TCP rnsd, check `RNS_HOST`/`RNS_PORT` point at a working
+  rnsd with a path to the node.
 - *Remote rejected (1): "Not identified"* — shouldn't happen (the client
   identifies automatically); indicates a link-level issue.
 - *Remote rejected (1): "Not allowed"* — pi's identity lacks the needed

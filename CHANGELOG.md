@@ -1,4 +1,7 @@
 # Changelog
+## [Unreleased]
+### Removed
+- Removed fallback to TCP client interface. Now we only use shared instance and AutoInterface
 ## [0.4.0] - 2026-07-23
 ### Added
 - Now using Reticulum AutoInterface by default

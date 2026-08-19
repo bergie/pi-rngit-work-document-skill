@@ -50,7 +50,7 @@ The target `rns://<hash>/<group>/<repo>` is resolved automatically, in order:
 | Variable | Meaning | Default |
 |---|---|---|
 | `RNGIT_TARGET_HASH` + `RNGIT_GROUP` + `RNGIT_REPO` | alternative to `RNGIT_URL` | — |
-| `RNS_HOST` / `RNS_PORT` | local rnsd TCP interface | `127.0.0.1:42424` |
+| `RNS_HOST` / `RNS_PORT` | local rnsd TCP interface (both required) | — |
 | `RNGIT_IDENTITY` | path to the client identity key | `~/.pi-rngit-work/identity.key` |
 | `RNGIT_PATH_TIMEOUT_MS` | time to learn the remote identity | `30000` |
 | `RNGIT_REQUEST_TIMEOUT_MS` | per-request response timeout | `300000` |
