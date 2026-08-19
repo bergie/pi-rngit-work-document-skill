@@ -1,7 +1,7 @@
 # Changelog
-## [Unreleased]
+## [0.5.0] - 2026-08-18
 ### Removed
-- Removed fallback to TCP client interface. Now we only use shared instance and AutoInterface
+- Removed fallback to TCP client interface. Now we only use shared instance and AutoInterface, except if RNS_HOST and RNS_PORT env vars are set
 ## [0.4.0] - 2026-07-23
 ### Added
 - Now using Reticulum AutoInterface by default
