@@ -1,4 +1,7 @@
 # Changelog
+## [Unreleased]
+### Changed
+- Updated `@reticulum/core` and `@reticulum/node` from 0.6.0 to 0.8.2
 ## [0.5.0] - 2026-08-18
 ### Removed
 - Removed fallback to TCP client interface. Now we only use shared instance and AutoInterface, except if RNS_HOST and RNS_PORT env vars are set
