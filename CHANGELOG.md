@@ -1,6 +1,8 @@
 # Changelog
 ## [Unreleased]
 
+## [0.6.1] - 2026-09-21
+
 ## [0.6.0] - 2026-09-20
 ### Changed
 - Updated `@reticulum/core` and `@reticulum/node` from 0.6.0 to 0.8.2
