@@ -11,11 +11,12 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { MsgPack } from "@reticulum/core";
+import { MsgPack, Reticulum } from "@reticulum/core";
 import {
   buildRequest,
   ConfigError,
   discoverUrl,
+  FileStorageAdapter,
   formatList,
   formatView,
   IDX_REPOSITORY,
@@ -27,6 +28,7 @@ import {
   statusLabel,
   toHashBytes,
   WorkError,
+  waitForIdentity,
 } from "../src/work-client.js";
 
 const HASH_HEX = "3ea5aad068a337670f5bb8073226adb4";
@@ -302,4 +304,88 @@ test("identityHashHex generates a 32-char hash and is stable", async () => {
   const b = await identityHashHex(keyPath);
   assert.match(a, /^[0-9a-f]{32}$/);
   assert.equal(a, b);
+});
+
+// --- waitForIdentity (reticulum-js 0.9.0 identity-recall contract) ---------
+
+/**
+ * Migration guard for reticulum-js 0.9.0: the static `Destination.recall` was
+ * removed in favor of the instance-scoped `rns.transport.recallIdentity`.
+ * With the old code path these tests fail with `TypeError: Destination.recall
+ * is not a function` — the bug that broke every `connect()` (and thus posting
+ * work-document updates) under `@reticulum/core` 0.9.0.
+ */
+
+const IDENTITY = { identityHash: new Uint8Array(16) };
+
+/** A `Reticulum` stub exposing only the transport API waitForIdentity uses. */
+function stubRns({ recallResult, requestPath } = {}) {
+  const calls = { requestPath: 0, recallIdentity: 0 };
+  const rns = {
+    transport: {
+      requestPath: async () => {
+        calls.requestPath++;
+        if (requestPath) return requestPath();
+      },
+      recallIdentity: async () => {
+        calls.recallIdentity++;
+        return typeof recallResult === "function"
+          ? recallResult()
+          : recallResult;
+      },
+    },
+  };
+  return { rns, calls };
+}
+
+test("waitForIdentity resolves via rns.transport.recallIdentity", async () => {
+  const { rns, calls } = stubRns({ recallResult: IDENTITY });
+  const result = await waitForIdentity(rns, toHashBytes(HASH_HEX), 5000);
+  assert.equal(result, IDENTITY);
+  assert.equal(calls.recallIdentity, 1);
+  assert.equal(calls.requestPath, 1);
+});
+
+test("waitForIdentity polls until the recall store has the identity", async () => {
+  let misses = 2;
+  const { rns, calls } = stubRns({
+    recallResult: () => (misses-- > 0 ? null : IDENTITY),
+  });
+  const result = await waitForIdentity(rns, toHashBytes(HASH_HEX), 5000, 5);
+  assert.equal(result, IDENTITY);
+  assert.equal(calls.recallIdentity, 3);
+});
+
+test("waitForIdentity tolerates a failing path request", async () => {
+  const { rns, calls } = stubRns({
+    recallResult: IDENTITY,
+    requestPath: () => {
+      throw new Error("no path");
+    },
+  });
+  const result = await waitForIdentity(rns, toHashBytes(HASH_HEX), 5000);
+  assert.equal(result, IDENTITY);
+  assert.equal(calls.recallIdentity, 1);
+});
+
+test("waitForIdentity resolves null on timeout when identity never appears", async () => {
+  const { rns, calls } = stubRns({ recallResult: null });
+  const result = await waitForIdentity(rns, toHashBytes(HASH_HEX), 30, 5);
+  assert.equal(result, null);
+  assert.ok(calls.recallIdentity >= 1);
+  assert.equal(calls.requestPath, 1);
+});
+
+test("installed @reticulum/core exposes the transport recall API we depend on", async () => {
+  // Contract guard against future dependency bumps: waitForIdentity calls
+  // `rns.transport.recallIdentity` / `rns.transport.requestPath`. A bare
+  // Reticulum (no interfaces, network-free) must provide both.
+  const dir = mkdtempSync(join(tmpdir(), "rngit-contract-"));
+  const rns = new Reticulum({
+    storageAdapter: new FileStorageAdapter(join(dir, "identity.key")),
+  });
+  assert.equal(typeof rns.transport.recallIdentity, "function");
+  assert.equal(typeof rns.transport.requestPath, "function");
+  // Nothing announced to this instance yet — the call must resolve null, not throw.
+  assert.equal(await rns.transport.recallIdentity(toHashBytes(HASH_HEX)), null);
 });

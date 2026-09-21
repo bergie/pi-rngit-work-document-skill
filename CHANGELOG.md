@@ -1,5 +1,13 @@
 # Changelog
 ## [Unreleased]
+### Fixed
+- Migrated identity recall to the reticulum-js 0.9.0 API
+  (`rns.transport.recallIdentity`). The `Destination.recall` static removed in
+  `@reticulum/core` 0.9.0 made every `connect()` fail with a `TypeError`, so no
+  work-document operations could be sent at all
+### Added
+- Test coverage for the identity-recall path, including a contract guard that
+  fails if a future `@reticulum/core` bump removes `transport.recallIdentity`
 
 ## [0.6.1] - 2026-09-21
 

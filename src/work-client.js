@@ -750,14 +750,24 @@ export class WorkClient {
 // --- Internals ------------------------------------------------------------
 
 /**
- * Polls for the remote identity, requesting a path up front. Resolves `null` on
- * timeout (mirrors `examples/nomadnet_fetch.js`).
+ * Polls for the remote identity via the transport's instance-scoped recall
+ * store (`rns.transport.recallIdentity`), requesting a path up front. Resolves
+ * `null` on timeout (mirrors `examples/nomadnet_fetch.js`).
+ *
+ * Exported for testability.
+ *
  * @param {Reticulum} rns
  * @param {Uint8Array} destinationHash
  * @param {number} timeoutMs
+ * @param {number} [pollMs=1000] - Delay between recall attempts.
  * @returns {Promise<import("@reticulum/core").Identity|null>}
  */
-async function waitForIdentity(rns, destinationHash, timeoutMs) {
+export async function waitForIdentity(
+  rns,
+  destinationHash,
+  timeoutMs,
+  pollMs = 1000,
+) {
   const deadline = Date.now() + timeoutMs;
   try {
     await rns.transport.requestPath(destinationHash);
@@ -765,9 +775,9 @@ async function waitForIdentity(rns, destinationHash, timeoutMs) {
     /* best-effort; poll will retry */
   }
   while (Date.now() < deadline) {
-    const identity = await Destination.recall(destinationHash);
+    const identity = await rns.transport.recallIdentity(destinationHash);
     if (identity) return identity;
-    await sleep(1000);
+    await sleep(pollMs);
   }
   return null;
 }
