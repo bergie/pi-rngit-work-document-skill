@@ -1,5 +1,7 @@
 # Changelog
 ## [Unreleased]
+
+## [0.6.2] - 2026-09-22
 ### Fixed
 - Migrated identity recall to the reticulum-js 0.9.0 API
   (`rns.transport.recallIdentity`). The `Destination.recall` static removed in
