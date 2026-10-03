@@ -41,6 +41,7 @@ import {
   MsgPack,
   Reticulum,
   toHex,
+  UnknownIdentityError,
 } from "@reticulum/core";
 import {
   AutoInterface,
@@ -571,20 +572,29 @@ export class WorkClient {
       }
     }
 
+    // Wait for persistor hydration and background services (e.g. interface
+    // discovery) before touching storage or the transport.
+    await this.rns.ready();
+
     this.identity = await Identity.loadOrGenerate(this.rns.storage);
 
-    const remote = await waitForIdentity(
-      this.rns,
-      this.targetHash,
-      this.pathTimeoutMs,
-    );
-    if (!remote) {
-      throw new Error(
-        `Could not learn an identity for ${toHex(this.targetHash)}. ` +
-          "Is the node reachable and has it announced?",
+    try {
+      // Recalls the identity, or solicits it via a path request, awaiting the
+      // destination announce up to `pathTimeoutMs`. Throws UnknownIdentityError
+      // when the node stays unreachable.
+      this.remoteIdentity = await this.rns.transport.recallOrSolicitIdentity(
+        this.targetHash,
+        this.pathTimeoutMs,
       );
+    } catch (err) {
+      if (err instanceof UnknownIdentityError) {
+        throw new Error(
+          `Could not learn an identity for ${toHex(this.targetHash)}. ` +
+            "Is the node reachable and has it announced?",
+        );
+      }
+      throw err;
     }
-    this.remoteIdentity = remote;
 
     const dest = await Destination.OUT(
       ASPECT,
@@ -748,39 +758,6 @@ export class WorkClient {
 }
 
 // --- Internals ------------------------------------------------------------
-
-/**
- * Polls for the remote identity via the transport's instance-scoped recall
- * store (`rns.transport.recallIdentity`), requesting a path up front. Resolves
- * `null` on timeout (mirrors `examples/nomadnet_fetch.js`).
- *
- * Exported for testability.
- *
- * @param {Reticulum} rns
- * @param {Uint8Array} destinationHash
- * @param {number} timeoutMs
- * @param {number} [pollMs=1000] - Delay between recall attempts.
- * @returns {Promise<import("@reticulum/core").Identity|null>}
- */
-export async function waitForIdentity(
-  rns,
-  destinationHash,
-  timeoutMs,
-  pollMs = 1000,
-) {
-  const deadline = Date.now() + timeoutMs;
-  try {
-    await rns.transport.requestPath(destinationHash);
-  } catch {
-    /* best-effort; poll will retry */
-  }
-  while (Date.now() < deadline) {
-    const identity = await rns.transport.recallIdentity(destinationHash);
-    if (identity) return identity;
-    await sleep(pollMs);
-  }
-  return null;
-}
 
 /** @param {string} s */
 function utf8(s) {

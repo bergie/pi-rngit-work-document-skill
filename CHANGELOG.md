@@ -1,5 +1,11 @@
 # Changelog
 ## [Unreleased]
+### Changed
+- Updated `@reticulum/core` and `@reticulum/node` from 0.9.0 to 0.9.3
+- `WorkClient.connect()` now awaits `Reticulum.ready()` before loading the
+  identity, avoiding persistor-hydration races at startup
+- Replaced the hand-rolled path-request/poll loop for learning the remote
+  identity with `transport.recallOrSolicitIdentity()`
 
 ## [0.6.2] - 2026-09-22
 ### Fixed
