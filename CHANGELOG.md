@@ -1,5 +1,7 @@
 # Changelog
 ## [Unreleased]
+
+## [0.6.2] - 2026-10-03
 ### Changed
 - Updated `@reticulum/core` and `@reticulum/node` from 0.9.0 to 0.9.3
 - `WorkClient.connect()` now awaits `Reticulum.ready()` before loading the
