@@ -1,5 +1,7 @@
 # Changelog
 ## [Unreleased]
+
+## [0.7.0] - 2026-10-04
 ### Fixed
 - Parallel `work.js` runs no longer race each other into failures: CLI invocations are serialized with a lock file next to the identity key, and identity writes are now atomic (temp file + rename)
 ### Added
