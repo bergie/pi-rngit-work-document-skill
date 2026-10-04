@@ -7,7 +7,13 @@
  */
 
 import { strict as assert } from "node:assert";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -16,11 +22,13 @@ import {
   buildRequest,
   ConfigError,
   discoverUrl,
+  FileLock,
   FileStorageAdapter,
   formatList,
   formatView,
   IDX_REPOSITORY,
   identityHashHex,
+  LockTimeoutError,
   loadConfig,
   parseRemoteUrl,
   parseResponse,
@@ -314,4 +322,101 @@ test("installed @reticulum/core exposes the transport recall API we depend on", 
     storageAdapter: new FileStorageAdapter(join(dir, "identity.key")),
   });
   assert.equal(typeof rns.transport.recallOrSolicitIdentity, "function");
+});
+
+// --- FileStorageAdapter atomic writes -------------------------------------
+
+test("FileStorageAdapter.saveKey persists the key and leaves no temp files", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "rngit-lock-"));
+  const path = join(dir, "nested", "identity.key");
+  const adapter = new FileStorageAdapter(path);
+  assert.equal(await adapter.loadKey(), null);
+  const key = new Uint8Array(128).fill(7);
+  await adapter.saveKey(key);
+  const loaded = await adapter.loadKey();
+  assert.ok(loaded);
+  assert.deepEqual(Buffer.from(loaded), Buffer.from(key));
+  const leftovers = readdirSync(join(dir, "nested")).filter((f) =>
+    f.includes(".tmp-"),
+  );
+  assert.deepEqual(leftovers, []);
+});
+
+// --- FileLock -------------------------------------------------------------
+
+test("FileLock serializes exclusive access", async () => {
+  const path = join(
+    mkdtempSync(join(tmpdir(), "rngit-lock-")),
+    "identity.key.lock",
+  );
+  const a = new FileLock(path, { timeoutMs: 200, retryMs: 10 });
+  await a.acquire();
+  const b = new FileLock(path, { timeoutMs: 200, retryMs: 10 });
+  await assert.rejects(() => b.acquire(), LockTimeoutError);
+  await a.release();
+  await b.acquire(); // now succeeds
+  await b.release();
+  assert.equal(existsSync(path), false);
+});
+
+test("FileLock breaks locks left behind by a crashed run", async () => {
+  const path = join(
+    mkdtempSync(join(tmpdir(), "rngit-lock-")),
+    "identity.key.lock",
+  );
+  // Simulate a holder that died 10 minutes ago.
+  writeFileSync(path, `999999 ${Date.now() - 10 * 60 * 1000}\n`);
+  const lock = new FileLock(path, {
+    timeoutMs: 500,
+    retryMs: 10,
+    staleMs: 60 * 1000,
+  });
+  await lock.acquire();
+  await lock.release();
+  assert.equal(existsSync(path), false);
+});
+
+test("FileLock.withLock releases on success and on failure", async () => {
+  const path = join(
+    mkdtempSync(join(tmpdir(), "rngit-lock-")),
+    "identity.key.lock",
+  );
+  const lock = new FileLock(path, { timeoutMs: 500, retryMs: 10 });
+  assert.equal(await lock.withLock(async () => "ok"), "ok");
+  assert.equal(existsSync(path), false);
+  await assert.rejects(
+    () =>
+      lock.withLock(async () => {
+        throw new Error("boom");
+      }),
+    /boom/,
+  );
+  assert.equal(existsSync(path), false); // released despite the throw
+});
+
+test("FileLock with timeout 0 fails fast while held", async () => {
+  const path = join(
+    mkdtempSync(join(tmpdir(), "rngit-lock-")),
+    "identity.key.lock",
+  );
+  const a = new FileLock(path, { timeoutMs: 0 });
+  await a.acquire();
+  const b = new FileLock(path, { timeoutMs: 0 });
+  await assert.rejects(() => b.acquire(), LockTimeoutError);
+  await a.release();
+});
+
+test("loadConfig exposes lock tuning from env", () => {
+  const cfg = loadConfig(
+    { RNGIT_URL: URL, RNGIT_LOCK_TIMEOUT_MS: "5", RNGIT_LOCK_STALE_MS: "6" },
+    fixture((d) => d),
+  );
+  assert.equal(cfg.lockTimeoutMs, 5);
+  assert.equal(cfg.lockStaleMs, 6);
+  const defaults = loadConfig(
+    { RNGIT_URL: URL },
+    fixture((d) => d),
+  );
+  assert.equal(defaults.lockTimeoutMs, 120000);
+  assert.equal(defaults.lockStaleMs, 900000);
 });

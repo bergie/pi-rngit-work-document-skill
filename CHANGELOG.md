@@ -1,5 +1,10 @@
 # Changelog
 ## [Unreleased]
+### Fixed
+- Parallel `work.js` runs no longer race each other into failures: CLI invocations are serialized with a lock file next to the identity key, and identity writes are now atomic (temp file + rename)
+### Added
+- `RNGIT_LOCK_TIMEOUT_MS` / `RNGIT_LOCK_STALE_MS` env vars to tune the run lock (wait budget and stale-lock breaking)
+- SKILL.md now instructs agents to run `work.js` commands sequentially, never in parallel
 
 ## [0.6.3] - 2026-10-03
 ### Changed

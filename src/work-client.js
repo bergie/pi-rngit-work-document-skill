@@ -30,7 +30,17 @@
  * identifies itself (`LINKIDENTIFY`), then issues requests.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+  writeSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import {
@@ -324,10 +334,141 @@ export class FileStorageAdapter {
   async loadKey() {
     return existsSync(this.path) ? readFileSync(this.path) : null;
   }
-  /** @param {Uint8Array} keyData */
+  /**
+   * Persists the key atomically (temp file + rename) so a concurrent reader
+   * never observes a partially written key — parallel CLI runs share this file.
+   * @param {Uint8Array} keyData
+   */
   async saveKey(keyData) {
     mkdirSync(dirname(this.path), { recursive: true });
-    writeFileSync(this.path, keyData, { mode: 0o600 });
+    const tmp = `${this.path}.tmp-${process.pid}`;
+    writeFileSync(tmp, keyData, { mode: 0o600 });
+    renameSync(tmp, this.path);
+  }
+}
+
+// --- Advisory lock -------------------------------------------------------
+
+/**
+ * Thrown when {@link FileLock} cannot acquire its lock within the wait budget —
+ * typically because another `work.js` run is still in progress.
+ */
+export class LockTimeoutError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "LockTimeoutError";
+  }
+}
+
+/**
+ * Advisory, dependency-free file lock that serializes concurrent CLI runs.
+ *
+ * Without a shared `rnsd`, every invocation boots its own full Reticulum stack
+ * while sharing one identity key and cache storage — parallel runs race on that
+ * state and the node sees a single identity speaking from several transports,
+ * which makes requests fail. Acquisition uses exclusive-create (`wx`), waits
+ * with a small poll interval, and breaks locks left behind by a crashed run
+ * once they exceed `staleMs`.
+ */
+export class FileLock {
+  /** @type {number|null} */
+  #fd = null;
+
+  /**
+   * @param {string} path - Lock file path (created next to the shared resource).
+   * @param {object} [options]
+   * @param {number} [options.timeoutMs=120000] - Max time to wait for the lock;
+   *   `0` fails fast when the lock is held.
+   * @param {number} [options.staleMs=900000] - Age after which a held lock is
+   *   assumed abandoned (crashed run) and broken.
+   * @param {number} [options.retryMs=200] - Poll interval while waiting.
+   */
+  constructor(
+    path,
+    { timeoutMs = 120000, staleMs = 900000, retryMs = 200 } = {},
+  ) {
+    this.path = path;
+    this.timeoutMs = timeoutMs;
+    this.staleMs = staleMs;
+    this.retryMs = retryMs;
+  }
+
+  /**
+   * Acquires the lock, waiting up to `timeoutMs` for a concurrent holder.
+   * @returns {Promise<void>}
+   * @throws {LockTimeoutError} when the lock stays held past the wait budget.
+   */
+  async acquire() {
+    const deadline = Date.now() + this.timeoutMs;
+    while (true) {
+      try {
+        this.#fd = openSync(this.path, "wx", 0o600);
+        writeSync(this.#fd, `${process.pid} ${Date.now()}\n`);
+        return;
+      } catch (err) {
+        if (/** @type {NodeJS.ErrnoException} */ (err).code !== "EEXIST")
+          throw err;
+        if (this.#isStale()) {
+          // Break the abandoned lock. Two waiters may race here; the loser's
+          // create then fails with EEXIST and it goes back to waiting.
+          try {
+            unlinkSync(this.path);
+          } catch {
+            /* someone else broke it first */
+          }
+          continue;
+        }
+        if (Date.now() >= deadline) {
+          throw new LockTimeoutError(
+            `Timed out after ${this.timeoutMs} ms waiting for run lock ${this.path}. ` +
+              "Another work.js run is probably still in progress; wait for it to finish.",
+          );
+        }
+        await sleep(this.retryMs);
+      }
+    }
+  }
+
+  /** Releases the lock. Safe to call multiple times. */
+  async release() {
+    if (this.#fd === null) return;
+    try {
+      closeSync(this.#fd);
+    } catch {
+      /* already closed */
+    }
+    this.#fd = null;
+    try {
+      unlinkSync(this.path);
+    } catch {
+      /* already removed */
+    }
+  }
+
+  /**
+   * Runs `fn` while holding the lock, releasing it even when `fn` throws.
+   * @template T
+   * @param {() => Promise<T>} fn
+   * @returns {Promise<T>}
+   */
+  async withLock(fn) {
+    await this.acquire();
+    try {
+      return await fn();
+    } finally {
+      await this.release();
+    }
+  }
+
+  /** @returns {boolean} */
+  #isStale() {
+    try {
+      const ts = Number(readFileSync(this.path, "utf-8").trim().split(" ")[1]);
+      return Number.isFinite(ts) && Date.now() - ts > this.staleMs;
+    } catch {
+      // Unreadable or missing: treat as stale so a corrupt lock can't wedge us.
+      return true;
+    }
   }
 }
 
@@ -414,6 +555,8 @@ export function loadConfig(env = process.env, cwd = process.cwd()) {
     identityPath: env.RNGIT_IDENTITY ?? defaultIdentityPath(),
     pathTimeoutMs: Number(env.RNGIT_PATH_TIMEOUT_MS ?? 30000),
     requestTimeoutMs: Number(env.RNGIT_REQUEST_TIMEOUT_MS ?? 300000),
+    lockTimeoutMs: Number(env.RNGIT_LOCK_TIMEOUT_MS ?? 120000),
+    lockStaleMs: Number(env.RNGIT_LOCK_STALE_MS ?? 900000),
   };
 }
 

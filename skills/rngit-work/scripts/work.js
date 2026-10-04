@@ -30,6 +30,7 @@ import {
   ConfigError,
   WorkError,
   Status,
+  FileLock,
   defaultIdentityPath,
   identityHashHex,
   loadConfig,
@@ -83,6 +84,19 @@ async function main() {
 
   const client = new WorkClient(config);
   const json = Boolean(flags.json);
+  // Serialize concurrent runs: without a shared rnsd each invocation boots its
+  // own Reticulum stack while sharing one identity key and cache storage, so
+  // parallel runs race on that state and fail. The lock queues them instead.
+  const lock = new FileLock(`${config.identityPath}.lock`, {
+    timeoutMs: config.lockTimeoutMs,
+    staleMs: config.lockStaleMs,
+  });
+  try {
+    await lock.acquire();
+  } catch (err) {
+    return fail(err, 1);
+  }
+  let exitCode = 0;
   try {
     // @reticulum/core logs at DEBUG to stdout; silence the whole connect→request→
     // teardown lifecycle unless --verbose, so only our result reaches stdout.
@@ -114,9 +128,12 @@ async function main() {
     });
     if (output !== undefined) console.log(output);
   } catch (err) {
-    return fail(err, err instanceof WorkError ? 2 : 1);
+    reportError(err);
+    exitCode = err instanceof WorkError ? 2 : 1;
+  } finally {
+    await lock.release();
   }
-  process.exit(0);
+  process.exit(exitCode);
 }
 
 // --- Operation runners (each returns its output string) -------------------
@@ -284,8 +301,8 @@ function readStdin() {
   });
 }
 
-/** @param {unknown} err @param {number} code */
-function fail(err, code) {
+/** @param {unknown} err */
+function reportError(err) {
   const e = /** @type {Error} */ (err);
   if (e instanceof ConfigError) {
     console.error(`Config error: ${e.message}`);
@@ -301,6 +318,11 @@ function fail(err, code) {
   } else {
     console.error(`Error: ${e.message || e}`);
   }
+}
+
+/** @param {unknown} err @param {number} code */
+function fail(err, code) {
+  reportError(err);
   process.exit(code);
 }
 
@@ -324,8 +346,11 @@ Configuration (env vars):
   RNGIT_URL=rns://<hash>/<group>/<repo>   (or RNGIT_TARGET_HASH + RNGIT_GROUP + RNGIT_REPO)
   RNS_HOST, RNS_PORT                       (local rnsd, default 127.0.0.1:42424)
   RNGIT_IDENTITY                           (path to pi's identity key)
+  RNGIT_LOCK_TIMEOUT_MS                    (max wait for the run lock, default 120000)
+  RNGIT_LOCK_STALE_MS                      (age at which a stuck lock is broken, default 900000)
 
 Flags --url --host --port --identity override the env vars for one run.
---json prints structured output instead of formatted text.`);
+--json prints structured output instead of formatted text.
+Runs are serialized with a lock file: invoke one work.js command at a time.`);
   process.exit(code);
 }

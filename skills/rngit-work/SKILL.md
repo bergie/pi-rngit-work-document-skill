@@ -36,6 +36,8 @@ uses) and set `RNGIT_URL`, or pass `--url rns://...` per run. Other env vars:
 |---|---|---|
 | `RNS_HOST` / `RNS_PORT` | local rnsd TCP interface (both required) | — |
 | `RNGIT_IDENTITY` | path to pi's identity key | `~/.pi-rngit-work/identity.key` |
+| `RNGIT_LOCK_TIMEOUT_MS` | max wait for the run lock (`0` fails fast) | `120000` |
+| `RNGIT_LOCK_STALE_MS` | age at which a stuck lock is broken | `900000` |
 
 ### 2. Bootstrap pi's identity (needs the user, once)
 
@@ -115,6 +117,7 @@ parse the result rather than show it to the user).
 
 ## Workflow notes
 
+- **Never run `work.js` commands in parallel.** Always wait for one invocation to exit before starting the next. Each run boots a Reticulum stack that shares one identity key and cache storage; concurrent runs race on that state and the node sees a single identity speaking from several transports, which makes requests fail. Runs are serialized with a lock file as a safety net, but just run one command at a time.
 - **Author the content as Markdown.** Write it to a temp file, then pass
   `--file`. Keep documents under 256 KiB.
 - **Only the author may `edit`.** To correct someone else's document, use
@@ -133,6 +136,7 @@ parse the result rather than show it to the user).
 
 ## Troubleshooting
 
+- *Timed out waiting for run lock* — another `work.js` run is still in progress. Wait for it to finish instead of running commands in parallel. A lock left by a crashed run is broken automatically after `RNGIT_LOCK_STALE_MS` (default 15 min); delete `<identity>.lock` to clear it sooner.
 - *"Could not learn an identity"* — the node isn't reachable or hasn't
   announced. If using a TCP rnsd, check `RNS_HOST`/`RNS_PORT` point at a working
   rnsd with a path to the node.
