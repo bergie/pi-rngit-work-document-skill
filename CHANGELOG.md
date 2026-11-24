@@ -1,5 +1,8 @@
 # Changelog
 ## [Unreleased]
+### Changed
+- Updated `@reticulum/core` and `@reticulum/node` from 0.9.3 to 0.10.0, bringing RNS 1.6.x parity: announce/path-request/link-request stamp emission and validation defaults to on, link MTU discovery lets JS-initiated links upgrade above 500 bytes, and several peer-input hardening fixes (announce stamp enforcement bypass, RTT and hashmap bounds validation) land with it
+- No client code changes were needed: the transport recall API, identity, link and interface surfaces we depend on are unchanged
 
 ## [0.7.0] - 2026-10-04
 ### Fixed
